@@ -1,13 +1,15 @@
 import { SignInButton, useUser } from "@clerk/nextjs";
 import Head from "next/head";
 import { api, type RouterOutputs } from "~/utils/api";
-import { LoadingPage } from "~/components/loading";
+import { LoadingPage, LoadingSpinner } from "~/components/loading";
+import { toast } from "react-hot-toast";
 import React from "react";
 
 // dayjs
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import Image from "next/image";
+import Link from "next/link";
 dayjs.extend(relativeTime);
 
 const CreatePostWizard = () => {
@@ -22,12 +24,24 @@ const CreatePostWizard = () => {
       setInput("");
       ctx.posts.getAll.invalidate();
     },
+    onError: (error) => {
+      const zodErrorMessage = error.data?.zodError?.fieldErrors.content;
+      if (zodErrorMessage && zodErrorMessage[0]) {
+        return toast.error(zodErrorMessage[0]);
+      }
+      const trpcErrorMessage = error.shape?.message;
+      if (trpcErrorMessage) {
+        return toast.error(trpcErrorMessage);
+      }
+
+      return toast.error("Failed to post! Please try again later.");
+    },
   });
 
   if (!user) return null;
 
   return (
-    <div className="flex gap-3">
+    <div className="flex w-full gap-3">
       <Image
         src={user.imageUrl}
         className="h-14 w-14 rounded-full"
@@ -41,11 +55,29 @@ const CreatePostWizard = () => {
         placeholder="Type some emojis!"
         className="grow bg-transparent outline-none"
         type="text"
+        // TODO instead of const [input, setInput] = React.useState("");
+        // gut this and use zod and react-hook-form
+        // validate this on the client side instead
+        // of waiting for the server to block after
+        // the form is submitted 1:51:50
         value={input}
         onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (input !== "") mutate({ content: input });
+          }
+        }}
         disabled={isPosting}
       />
-      <button onClick={() => mutate({ content: input })}>Post</button>
+      {input !== "" && !isPosting && (
+        <button onClick={() => mutate({ content: input })}>Post</button>
+      )}
+      {isPosting && (
+        <div className="flex items-center justify-center">
+          <LoadingSpinner size={20} />
+        </div>
+      )}
     </div>
   );
 };
@@ -68,10 +100,15 @@ const PostView = (props: PostWithUser) => {
       />
       <div className="flex flex-col">
         <div className="flex gap-1 text-slate-300">
-          <span>{`@${author.username}`}</span>
-          <span className="font-thin">{` · ${dayjs(
-            post.createdAt,
-          ).fromNow()}`}</span>
+          <Link href={`/@${author.username}`}>
+            <span>{`@${author.username}`}</span>
+          </Link>
+
+          <Link href={`/post/@${post.id}`}>
+            <span className="font-thin">{` · ${dayjs(
+              post.createdAt,
+            ).fromNow()}`}</span>
+          </Link>
         </div>
         <span className="text-2xl">{post.content}</span>
       </div>
