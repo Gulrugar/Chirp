@@ -5,6 +5,26 @@ import { generateSSGHelper } from "~/server/helpers/ssgHelper";
 import type { GetStaticProps, NextPage } from "next";
 import { PageLayout } from "~/components/layout";
 import Image from "next/image";
+import { LoadingPage } from "~/components/loading";
+import { PostView } from "~/components/postview";
+
+const ProfileFeed = (props: { userId: string }) => {
+  const { data, isLoading } = api.posts.getPostsByUserId.useQuery({
+    userId: props.userId,
+  });
+
+  if (isLoading) return <LoadingPage />;
+
+  if (!data || data.length === 0) return <div>User has not posted</div>;
+
+  return (
+    <div className="flex flex-col overflow-y-scroll">
+      {data.map((fullPost) => (
+        <PostView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  );
+};
 
 const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
   const { data } = api.profile.getUserByUsername.useQuery({ username });
@@ -17,7 +37,7 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
         <title>{data.username}</title>
       </Head>
       <PageLayout>
-        <div className="relative h-36 bg-slate-600">
+        <div className="relative h-36 min-h-[144px] bg-slate-600">
           <Image
             src={data.imageUrl}
             alt={`${data.username}'s profile pic`}
@@ -28,9 +48,10 @@ const ProfilePage: NextPage<{ username: string }> = ({ username }) => {
             blurDataURL={"/default-avatar.png"}
           />
         </div>
-        <div className="h-[64px]"></div>
+        <div className="h-[64px] min-h-[64px]"></div>
         <div className="p-4 text-2xl font-bold">{`@${data.username}`}</div>
-        <div className="w-full border-b border-slate-400" />
+        <div className="w-full border-b border-slate-400"></div>
+        <ProfileFeed userId={data.id} />
       </PageLayout>
     </>
   );
