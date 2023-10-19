@@ -17,11 +17,11 @@ const CreatePostWizard = () => {
   const { mutate, isLoading: isPosting } = api.posts.create.useMutation({
     onSuccess: () => {
       setInput("");
-      ctx.posts.getAll.invalidate();
+      void ctx.posts.getAll.invalidate();
     },
     onError: (error) => {
       const zodErrorMessage = error.data?.zodError?.fieldErrors.content;
-      if (zodErrorMessage && zodErrorMessage[0]) {
+      if (zodErrorMessage?.[0]) {
         return toast.error(zodErrorMessage[0]);
       }
       const trpcErrorMessage = error.shape?.message;
